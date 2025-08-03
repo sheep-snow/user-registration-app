@@ -1,0 +1,232 @@
+---
+
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>User Registration App</title>
+		<script src="https://js.stripe.com/v3/"></script>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				max-width: 800px;
+				margin: 0 auto;
+				padding: 20px;
+			}
+			.container {
+				text-align: center;
+			}
+			.button {
+				background: #007bff;
+				color: white;
+				border: none;
+				padding: 12px 24px;
+				border-radius: 4px;
+				cursor: pointer;
+				margin: 8px;
+			}
+			.button:hover {
+				background: #0056b3;
+			}
+			.button:disabled {
+				background: #ccc;
+				cursor: not-allowed;
+			}
+			.hidden {
+				display: none;
+			}
+			.license-item {
+				background: #f8f9fa;
+				padding: 16px;
+				margin: 8px 0;
+				border-radius: 4px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>User Registration App</h1>
+
+			<div id="auth-section">
+				<div id="login-section">
+					<h2>Welcome</h2>
+					<p>Sign in with Google to access your licenses</p>
+					<button id="signin-btn" class="button"
+						>Sign in with Google</button
+					>
+				</div>
+
+				<div id="dashboard-section" class="hidden">
+					<h2>Dashboard</h2>
+					<p>Welcome back! <span id="user-email"></span></p>
+					<button id="signout-btn" class="button">Sign Out</button>
+
+					<div id="purchase-section">
+						<h3>Purchase License</h3>
+						<p>Get your license for $10.00</p>
+						<button id="purchase-btn" class="button"
+							>Purchase License</button
+						>
+					</div>
+
+					<div id="licenses-section">
+						<h3>Your Licenses</h3>
+						<div id="licenses-list">Loading...</div>
+						<button id="refresh-licenses" class="button"
+							>Refresh</button
+						>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<script type="module">
+			import { signInWithGoogle, signOutUser, isAuthenticated, getUserInfo, apiCall } from '/src/lib/auth.ts';
+
+			let currentUser = null;
+
+			function showLogin() {
+				document
+					.getElementById("login-section")
+					.classList.remove("hidden");
+				document
+					.getElementById("dashboard-section")
+					.classList.add("hidden");
+			}
+
+			function showDashboard() {
+				document
+					.getElementById("login-section")
+					.classList.add("hidden");
+				document
+					.getElementById("dashboard-section")
+					.classList.remove("hidden");
+				loadLicenses();
+			}
+
+			async function signIn() {
+				try {
+					await signInWithGoogle();
+				} catch (error) {
+					alert("Sign-in failed: " + error.message);
+				}
+			}
+
+			async function signOut() {
+				try {
+					await signOutUser();
+					currentUser = null;
+					showLogin();
+				} catch (error) {
+					alert("Sign-out failed: " + error.message);
+				}
+			}
+
+			async function purchaseLicense() {
+				try {
+					const response = await apiCall('/payment/create-session', {
+						method: 'POST'
+					});
+
+					if (!response.ok) {
+						const errorText = await response.text();
+						throw new Error(`API Error: ${response.status} - ${errorText}`);
+					}
+
+					const { clientSecret } = await response.json();
+
+					// Stripe決済フォームへリダイレクト
+					const stripe = Stripe(import.meta.env.PUBLIC_STRIPE_PUBLISHABLE_KEY);
+
+					const { error } = await stripe.confirmPayment({
+						clientSecret,
+						confirmParams: {
+							return_url: `${window.location.origin}/payment/success`
+						}
+					});
+
+					if (error) {
+						throw error;
+					}
+				} catch (error) {
+					console.error('Purchase error:', error);
+					if (error.message.includes('No authentication token')) {
+						alert('Please sign in first');
+						showLogin();
+					} else {
+						alert('Purchase failed: ' + error.message);
+					}
+				}
+			}
+
+			async function loadLicenses() {
+				try {
+					const response = await apiCall('/licenses');
+					
+					if (!response.ok) {
+						throw new Error(`API Error: ${response.status}`);
+					}
+
+					const { licenses } = await response.json();
+					
+					const licensesHtml = licenses.length > 0 
+						? licenses.map(license => `
+							<div class="license-item">
+								<strong>License:</strong> ${license.licenseCode}<br>
+								<strong>Purchased:</strong> ${new Date(license.purchaseDate).toLocaleDateString()}
+							</div>
+						`).join('')
+						: 'No licenses found. Purchase your first license!';
+					
+					document.getElementById('licenses-list').innerHTML = licensesHtml;
+				} catch (error) {
+					console.error('Load licenses error:', error);
+					if (error.message.includes('No authentication token')) {
+						document.getElementById('licenses-list').innerHTML = 'Please sign in to view licenses';
+					} else {
+						document.getElementById('licenses-list').innerHTML = 'Error loading licenses: ' + error.message;
+					}
+				}
+			}
+
+			// Event listeners
+			document
+				.getElementById("signin-btn")
+				.addEventListener("click", signIn);
+			document
+				.getElementById("signout-btn")
+				.addEventListener("click", signOut);
+			document
+				.getElementById("purchase-btn")
+				.addEventListener("click", purchaseLicense);
+			document
+				.getElementById("refresh-licenses")
+				.addEventListener("click", loadLicenses);
+
+			// 初期化: 認証状態をチェック
+			async function initializeApp() {
+				try {
+					const authenticated = await isAuthenticated();
+					if (authenticated) {
+						currentUser = await getUserInfo();
+						if (currentUser) {
+							document.getElementById('user-email').textContent = currentUser.email || 'Google User';
+							showDashboard();
+							return;
+						}
+					}
+				} catch (error) {
+					console.error('Auth check error:', error);
+				}
+				showLogin();
+			}
+
+			// アプリ初期化
+			initializeApp();
+		</script>
+	</body>
+</html>

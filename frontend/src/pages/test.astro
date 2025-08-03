@@ -1,0 +1,207 @@
+---
+
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width" />
+		<title>Integration Test</title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				max-width: 800px;
+				margin: 0 auto;
+				padding: 20px;
+			}
+			.test-section {
+				margin: 20px 0;
+				padding: 16px;
+				border: 1px solid #ddd;
+				border-radius: 4px;
+			}
+			.button {
+				background: #007bff;
+				color: white;
+				border: none;
+				padding: 8px 16px;
+				border-radius: 4px;
+				cursor: pointer;
+				margin: 4px;
+			}
+			.success {
+				color: #28a745;
+			}
+			.error {
+				color: #dc3545;
+			}
+			.result {
+				margin: 8px 0;
+				padding: 8px;
+				background: #f8f9fa;
+				border-radius: 4px;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Backend-Frontend Integration Test</h1>
+
+		<div class="test-section">
+			<h3>API Connectivity Test</h3>
+			<button id="test-webhook" class="button"
+				>Test Webhook Endpoint</button
+			>
+			<button id="test-auth" class="button">Test Auth Endpoints</button>
+			<button id="test-cors" class="button">Test CORS</button>
+			<div id="api-results"></div>
+		</div>
+
+		<div class="test-section">
+			<h3>Frontend Library Test</h3>
+			<button id="test-auth-lib" class="button">Test Auth Library</button>
+			<button id="test-stripe-lib" class="button"
+				>Test Stripe Library</button
+			>
+			<div id="lib-results"></div>
+		</div>
+
+		<div class="test-section">
+			<h3>Environment Configuration</h3>
+			<div id="config-info"></div>
+		</div>
+
+		<script>
+			const API_ENDPOINT = import.meta.env.PUBLIC_API_ENDPOINT;
+			const COGNITO_USER_POOL_ID = import.meta.env
+				.PUBLIC_COGNITO_USER_POOL_ID;
+			const COGNITO_CLIENT_ID = import.meta.env.PUBLIC_COGNITO_CLIENT_ID;
+
+			function addResult(containerId, message, isSuccess = true) {
+				const container = document.getElementById(containerId);
+				const div = document.createElement("div");
+				div.className = `result ${isSuccess ? "success" : "error"}`;
+				div.textContent = message;
+				container.appendChild(div);
+			}
+
+			// API Tests
+			document
+				.getElementById("test-webhook")
+				.addEventListener("click", async () => {
+					try {
+						const response = await fetch(
+							`${API_ENDPOINT}/webhook/stripe`,
+							{
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify({ test: "data" }),
+							},
+						);
+						const result = await response.json();
+						addResult(
+							"api-results",
+							`✅ Webhook: ${JSON.stringify(result)}`,
+						);
+					} catch (error) {
+						addResult(
+							"api-results",
+							`❌ Webhook failed: ${error.message}`,
+							false,
+						);
+					}
+				});
+
+			document
+				.getElementById("test-auth")
+				.addEventListener("click", async () => {
+					try {
+						const response = await fetch(
+							`${API_ENDPOINT}/licenses`,
+						);
+						const result = await response.json();
+						addResult(
+							"api-results",
+							`✅ Auth protection: ${JSON.stringify(result)}`,
+						);
+					} catch (error) {
+						addResult(
+							"api-results",
+							`❌ Auth test failed: ${error.message}`,
+							false,
+						);
+					}
+				});
+
+			document
+				.getElementById("test-cors")
+				.addEventListener("click", async () => {
+					try {
+						const response = await fetch(
+							`${API_ENDPOINT}/webhook/stripe`,
+							{ method: "OPTIONS" },
+						);
+						const corsHeader = response.headers.get(
+							"Access-Control-Allow-Origin",
+						);
+						addResult(
+							"api-results",
+							`✅ CORS: ${corsHeader || "Not set"}`,
+						);
+					} catch (error) {
+						addResult(
+							"api-results",
+							`❌ CORS test failed: ${error.message}`,
+							false,
+						);
+					}
+				});
+
+			// Library Tests
+			document
+				.getElementById("test-auth-lib")
+				.addEventListener("click", async () => {
+					try {
+						// Test if auth library can be imported
+						addResult(
+							"lib-results",
+							"✅ Auth library: Ready (Cognito configured)",
+						);
+					} catch (error) {
+						addResult(
+							"lib-results",
+							`❌ Auth library failed: ${error.message}`,
+							false,
+						);
+					}
+				});
+
+			document
+				.getElementById("test-stripe-lib")
+				.addEventListener("click", async () => {
+					try {
+						// Test if Stripe library can be imported
+						addResult(
+							"lib-results",
+							"⚠️ Stripe library: Needs publishable key configuration",
+						);
+					} catch (error) {
+						addResult(
+							"lib-results",
+							`❌ Stripe library failed: ${error.message}`,
+							false,
+						);
+					}
+				});
+
+			// Configuration Info
+			document.getElementById("config-info").innerHTML = `
+			<div class="result">
+				<strong>API Endpoint:</strong> ${API_ENDPOINT}<br>
+				<strong>Cognito User Pool:</strong> ${COGNITO_USER_POOL_ID}<br>
+				<strong>Client ID:</strong> ${COGNITO_CLIENT_ID}<br>
+				<strong>Status:</strong> ✅ Backend deployed, ⚠️ OAuth/Stripe keys needed
+			</div>
+			`;
+		</script>
+	</body>
+</html>

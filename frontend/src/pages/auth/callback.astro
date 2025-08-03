@@ -1,0 +1,68 @@
+---
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<title>Authentication Callback</title>
+		<style>
+			body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; text-align: center; }
+			.success { color: #28a745; }
+			.error { color: #dc3545; }
+			.info { background: #f0f0f0; padding: 16px; border-radius: 4px; margin: 16px 0; }
+		</style>
+	</head>
+	<body>
+		<h1>🔐 Authentication Callback</h1>
+		<div id="status">Processing authentication...</div>
+		<div id="details" class="info"></div>
+		
+		<script>
+			async function handleCallback() {
+				const statusDiv = document.getElementById('status');
+				const detailsDiv = document.getElementById('details');
+				
+				try {
+					// URLパラメータを取得
+					const urlParams = new URLSearchParams(window.location.search);
+					const code = urlParams.get('code');
+					const error = urlParams.get('error');
+					
+					if (error) {
+						statusDiv.innerHTML = '<span class="error">❌ Authentication Error</span>';
+						detailsDiv.innerHTML = `<p>Error: ${error}</p><p>Description: ${urlParams.get('error_description') || 'Unknown error'}</p>`;
+						return;
+					}
+					
+					if (code) {
+						statusDiv.innerHTML = '<span class="success">✅ Authentication Successful!</span>';
+						detailsDiv.innerHTML = `
+							<p><strong>Authorization Code:</strong> ${code.substring(0, 20)}...</p>
+							<p>Redirecting to dashboard...</p>
+						`;
+						
+						// 認証成功時の処理
+						console.log('OAuth callback successful, code:', code);
+						
+						// 即座にホームページにリダイレクト
+						const baseUrl = window.location.origin;
+						window.location.href = baseUrl + '/?auth=success';
+					} else {
+						statusDiv.innerHTML = '<span class="error">❌ No authorization code received</span>';
+						detailsDiv.innerHTML = '<p>Please try signing in again.</p>';
+					}
+					
+				} catch (error) {
+					console.error('Callback processing error:', error);
+					statusDiv.innerHTML = '<span class="error">❌ Processing Error</span>';
+					detailsDiv.innerHTML = `<p>Error: ${error.message}</p><p>Please try signing in again.</p>`;
+				}
+			}
+			
+			// ページ読み込み時に実行
+			handleCallback();
+		</script>
+	</body>
+</html>
