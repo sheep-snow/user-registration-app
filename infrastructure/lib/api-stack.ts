@@ -1,4 +1,4 @@
-import { Stack, StackProps } from 'aws-cdk-lib';
+import { Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as path from 'path';
@@ -99,5 +99,11 @@ export class ApiStack extends Stack {
     webhookResource.addResource('stripe').addMethod('POST', 
       new apigateway.LambdaIntegration(stripeWebhookFunction)
     );
+
+    // Output
+    new CfnOutput(this, 'ApiGatewayEndpoint', {
+      value: this.api.url,
+      description: 'API Gateway エンドポイント'
+    });
   }
 }

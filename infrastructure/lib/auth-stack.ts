@@ -1,4 +1,4 @@
-import { Stack, StackProps, RemovalPolicy } from 'aws-cdk-lib';
+import { Stack, StackProps, RemovalPolicy, CfnOutput } from 'aws-cdk-lib';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import { Construct } from 'constructs';
 import { CommonResourceStack } from './common-resource-stack';
@@ -28,7 +28,22 @@ export class AuthStack extends Stack {
         flows: { authorizationCodeGrant: true },
         scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE],
         callbackUrls: [common.frontendCallbackUrl]
-      }
+      },
+      supportedIdentityProviders: [
+        cognito.UserPoolClientIdentityProvider.COGNITO,
+        cognito.UserPoolClientIdentityProvider.GOOGLE
+      ]
+    });
+
+    // Outputs
+    new CfnOutput(this, 'UserPoolId', {
+      value: this.userPool.userPoolId,
+      description: 'Cognito UserPool ID'
+    });
+
+    new CfnOutput(this, 'UserPoolClientId', {
+      value: this.userPoolClient.userPoolClientId,
+      description: 'Cognito Client ID'
     });
   }
 }
